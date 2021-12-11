@@ -3,7 +3,9 @@ import sys
 import constraint
 
 class Problema:
-
+    """
+    Clase que modela el problema a resolver definiendo
+    """
 
     def __init__(self):
 
@@ -34,91 +36,89 @@ class Problema:
 
         # Obtenemos una lista de las posiciones en el mapa
         map = map.split("\n")
-        dom = []
+        self.dom = []
 
         for i in map:
-            dom.append(i.split(" "))
+            self.dom.append(i.split(" "))
 
         # Gracias al contenido del fichero de contenedores podemos obtener un array de arrays con los atributos de cada contenedor (org, id, dest)
         cont = cont.split("\n")
-        vars = []
+        self.vars = []
         for i in cont:
-            vars.append(i.split(" "))
-
-        # print(map_index(dom))
-        # print("------------------------")
-        # print(x_positions(dom))
-
+            self.vars.append(i.split(" "))
+        
         self.problem = constraint.Problem()
 
         # Reducimos los posibles dominios para las variables S y R
 
-        dom_S = self.standar_map(dom)
-        dom_R = self.energy_map(dom)
+        dom_S = self.standar_map()
+        dom_R = self.energy_map()
 
-        self.lengths = self.obtain_lengths(dom)
+        self.lengths = self.obtain_lengths()
 
-        for i in range(len(vars)):
-            vars[i] = tuple(vars[i])    
+        for i in range(len(self.vars)):
+            self.vars[i] = tuple(self.vars[i])    
         
-        for i in vars:
+        for i in self.vars:
             if "S" in i:
                 self.problem.addVariable(i, tuple(dom_S))
             else:
                 self.problem.addVariable(i, tuple(dom_R))
 
-        self.problem.addConstraint(self.not_equal, tuple(vars))
-        self.problem.addConstraint(self.base, tuple(vars))
+        self.problem.addConstraint(self.not_equal, tuple(self.vars))
+        self.problem.addConstraint(self.base, tuple(self.vars))
+        self.problem.addConstraint(self.ports_order, tuple(self.vars))
 
         #salida = problem.getSolution()
 
         #print(salida)
 
-    def __str__(self):
+    def __str__(self)->str:
         return str(self.problem.getSolution())
-
-    def obtain_lengths(self, dom):
+    
+    def obtain_lengths(self)->list:
         """
         Devuelve la longitud real de cada columna
         """
         lengths = []
         
-        for i in range(len(dom[0])):
-            lengths.append(len(dom))
+        for i in range(len(self.dom[0])):
+            lengths.append(len(self.dom))
 
-        for i in range(len(dom)):
-            for j in range(len(dom[i])):
-                if dom[i][j] == "X":
+        for i in range(len(self.dom)):
+            for j in range(len(self.dom[i])):
+                if self.dom[i][j] == "X":
                     lengths[j] -= 1
         return lengths
 
-    def standar_map(self, dom):
+    def standar_map(self)->list:
         """
         Reduce el dominio de los contenedores tipo S
         """
         valid_positions=[]
-        for i in range(len(dom)):
-            for j in range(len(dom[i])):
-                if dom[i][j] != "X":
+        for i in range(len(self.dom)):
+            for j in range(len(self.dom[i])):
+                if self.dom[i][j] != "X":
                     valid_positions.append((j,i))
 
         return valid_positions
 
-    def energy_map(self, dom):
+    def energy_map(self)->list:
         """
         Reduce el dominio de los contenedores tipo R
         """
         valid_positions=[]
-        for i in range(len(dom)):
-            for j in range(len(dom[i])):
-                if dom[i][j] != "X" and dom[i][j] != "N":
+        for i in range(len(self.dom)):
+            for j in range(len(self.dom[i])):
+                if self.dom[i][j] != "X" and self.dom[i][j] != "N":
                     valid_positions.append((j,i))
         
         return valid_positions
 
-    def not_equal(self, *args):
+    def not_equal(self, *args)->bool:
         """
         Restricción: dos contenedores no pueden ocupar la misma celda
+        (IMPLÍCITAMENTE) Restricción: el número de contenedores debe ser menor que el de celdas
         """
         for i in range (len(args)):
             for j in range (i + 1, len(args)):
@@ -126,7 +126,7 @@ class Problema:
                     return False
         return True
 
-    def base(self, *args):
+    def base(self, *args)->bool:
         """
         Restricción: un contenedor debe tener a otro debajo o una casilla X en su lugar
         """
@@ -136,6 +136,19 @@ class Problema:
                 base += (i != j and args[i][1] + 1 == args[j][1] and args[i][0] == args[j][0] or args[i][1] == self.lengths[args[i][0]]-1) 
             if not base:
                 return False
+        return True
+    
+    def ports_order(self, *args)->bool:
+        """
+        Restricción: los containers destinados al puerto 2 siempre
+        estarán a más profundidad que los destinados al puerto 1
+        """
+        for i in range(len(self.vars)):
+            for j in range(len(self.vars)):
+                if i != j and args[i][0] == args[j][0]:
+                    if self.vars[i][2] < self.vars[j][2]:
+                        if args[i][1] > args[j][1]:
+                            return False
         return True
 
 if __name__=="__main__":
