@@ -74,7 +74,7 @@ class Problema:
         #print(salida)
 
     def __str__(self)->str:
-        return str(self.problem.getSolution())
+        return str(self.problem.getSolutions())
     
     def obtain_lengths(self)->list:
         """
