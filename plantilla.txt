@@ -1,0 +1,13 @@
+E N E N
+N N N E
+N N N N
+X N N X
+X X X X
+
+     0 1 2 3
+
+0    7 N 5 N
+1    N N N 4
+2    N 6 1 N
+3    X 3 2 X
+4    X X X X
