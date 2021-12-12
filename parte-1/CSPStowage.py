@@ -15,7 +15,7 @@ class Problema:
             return
 
         # Comprobamos que todos los argumentos son strings, ya que no podremos operar con ellos si no lo son
-        if (type(sys.argv[0]) != str or type(sys.argv[0]) != str or type(sys.argv[0]) != str):
+        if (type(sys.argv[1]) != str or type(sys.argv[2]) != str or type(sys.argv[3]) != str):
             print("Error: los argumentos no son correctos")
             return
 
@@ -74,7 +74,39 @@ class Problema:
         #print(salida)
 
     def __str__(self)->str:
-        return str(self.problem.getSolutions())
+        """
+        Método str que devuelve todas las posibles soluciones del problema
+        """
+        return self.problem.getSolutions()
+
+    def write_solution(self):
+        """
+        Escribe la solución de un par map.txt - cont.txt
+        """
+        sol = self.__str__()
+
+        if sol == None:
+            length = 0
+        else:
+            length = len(sol)
+
+        sols=[]
+        
+        for i in sol:
+            dic = {}
+            values = i.values()
+            for j in i.keys():
+                new = int(j[0])
+                dic[new] = i[j]
+            sols.append(dic)
+
+        output = f"Numero de soluciones: {length} \n"
+
+        for i in sols:
+            output += str(i)+"\n"
+        
+        output_file = open(sys.argv[1] + "/" + sys.argv[2] + "-" + sys.argv[3] + ".output", "w")
+        output_file.write(output)
     
     def obtain_lengths(self)->list:
         """
@@ -153,7 +185,7 @@ class Problema:
 
 if __name__=="__main__":
     a = Problema() 
-    print(a)
+    a.write_solution()
 
 
 
