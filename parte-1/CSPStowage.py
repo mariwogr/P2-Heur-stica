@@ -43,12 +43,6 @@ class Problema:
         for i in map:
             self.dom.append(i.split(" "))
         
-        # for i in self.dom:
-        #     for j in i:
-        #         print(j)
-        #         if j!="X" and j!="N" and j!="E":
-        #             print("Error: Mapa no válido")
-        #             return
 
         # Gracias al contenido del fichero de contenedores podemos obtener un array de arrays con los atributos de cada contenedor (org, id, dest)
         cont = cont.split("\n")
