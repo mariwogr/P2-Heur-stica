@@ -6,12 +6,10 @@ class Problema:
     """
     Clase que modela el problema CSP a resolver definiendo el conjunto de variables y el conjunto de restricciones
     """
-
     def __init__(self):
         """
         Constructor de la clase problema, define su estado inicial
         """
-
         # Comprobamos que el número de argumentos pasado sea correcto (4 ya que la pos 0 es el propio programa)
         if len(sys.argv) != 4:
             print("Error: número de argumentos incorrecto")
@@ -47,8 +45,11 @@ class Problema:
         # Gracias al contenido del fichero de contenedores podemos obtener un array de arrays con los atributos de cada contenedor (org, id, dest)
         cont = cont.split("\n")
         self.vars = []
+        self.content = []
         for i in cont:
-            self.vars.append(i.split(" "))
+            all_content = i.split(" ")
+            self.vars.append(all_content[0])
+            self.content.append(tuple(all_content[1:]))
         
         # Definición del problema
 
@@ -62,21 +63,19 @@ class Problema:
         # Obtención de la profundidad real (no X) de cada columna
 
         self.lengths = self.obtain_lengths()
-
-        for i in range(len(self.vars)):
-            self.vars[i] = tuple(self.vars[i])    
         
         # Asignamos los dominios correspondientes a cada contenedor
 
-        for i in self.vars:
-            if "S" in i:
-                self.problem.addVariable(i, tuple(dom_S))
+        for i in range(len(self.vars)):
+            if "S" in self.content[i]:
+                self.problem.addVariable(self.vars[i], tuple(dom_S))
             else:
-                self.problem.addVariable(i, tuple(dom_R))
+                self.problem.addVariable(self.vars[i], tuple(dom_R))
 
         # Añadimos las restricciones al problema
 
         self.problem.addConstraint(self.not_equal, tuple(self.vars))
+        ## All different constraint
         self.problem.addConstraint(self.base, tuple(self.vars))
         self.problem.addConstraint(self.ports_order, tuple(self.vars))
 
@@ -106,8 +105,7 @@ class Problema:
         for i in sol:
             dic = {}
             for j in i.keys():
-                new = int(j[0])
-                dic[new] = i[j]
+                dic[int(j)] = i[j]
             sols.append(dic)
 
         output = f"Numero de soluciones: {length} \n"
@@ -202,9 +200,9 @@ class Problema:
                 #   - No son el mismo elemento (i != j)
                 #   - Están en la misma columna (args[i][0] == args[j][0])
                 #   - El elemento j está justo debajo de i (args[i][1] + 1 == args[j][1])
-                #   Ó si el elemento se encuentra en el último elemento posible de la profundidad de cada pila (args[i][1] == self.lengths[args[i][0]]-1)
+                #   Ó si el elemento se encuentra en el último elemento posible de la profundidad de cada pila (args[i][1] + 1 == self.lengths[args[i][0]]-1)
 
-                base += (i != j and args[i][1] + 1 == args[j][1] and args[i][0] == args[j][0] or args[i][1] == self.lengths[args[i][0]]-1)
+                base += (i != j and args[i][1] + 1 == args[j][1] and args[i][0] == args[j][0] or args[i][1] + 1 == self.lengths[args[i][0]])
 
             # Si la variable base sigue siendo False, no hay ningún posible valor que cumpla esta restricción => False
 
@@ -224,7 +222,7 @@ class Problema:
                 #   - Están en la misma columna (args[i][0] == args[j][0])
                 #   - El puerto de i debe ser menor en índice que el de j (self.vars[i][2] < self.vars[j][2])
                 #   - La profundidad de i es mayor que la de j (args[i][1] > args[j][1])
-                if i != j and args[i][0] == args[j][0] and self.vars[i][2] < self.vars[j][2] and args[i][1] > args[j][1]:
+                if i != j and args[i][0] == args[j][0] and self.content[i][1] < self.content[j][1] and args[i][1] > args[j][1]:
                     return False
         return True
 
