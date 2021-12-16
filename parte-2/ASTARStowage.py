@@ -34,15 +34,161 @@ class Problema:
         map = map_file.read()
         cont = cont_file.read()
 
-        # Definimos la tupla prinicpal que representará los diferentes estados en el estado inicial
+        # Definimos la tupla que representará el estado inicial
 
-        self.state = []
-        for i in range(len(cont)):
-                self.state.append(0)
-                self.append(None)
+        cont = cont.split("\n")
+        self.content = []
+        for i in cont:
+            all_content = i.split(" ")
+            self.content.append(tuple(all_content[1:]))
         
+        initial_state = []
+        for i in range(len(cont)):
+            container = [0, None]    
+            initial_state.append(container)
+
         # Añadimos el estado inicial del barco
 
-        self.state.append(0)
+        initial_state.append(0)
+    
+        # Creamos el nodo inicial que no tendrá padre
 
-        # Def
+        start_node = Node(initial_state)
+
+        # Resolvemos el problema utlizando A*
+
+        self.astar(start_node)
+
+    def astar(self, start_node, end_node):
+        """
+        Operador cargar, carga los containers en el barco
+        """
+        
+        # Inicializamos las listas de abiertos y cerrados
+
+        open_list = []
+        closed_list = []
+
+        # Añadimos el nodo inicial
+
+        open_list.append(start_node)
+
+        # Bucle hasta que no queden nodos por abrir
+
+        while len(open_list) > 0:
+
+            # Guardamos el nodo actual
+
+            current_node = open_list[0]
+            current_index = 0
+
+            # Obtenemos el nodo de la lista de abiertos con menor f
+
+            for cont, i in enumerate(open_list):
+                if i.f < current_node.f:
+                    current_node = i
+                    current_index = cont
+
+        # Eliminamos el nodo actual de la lista de abiertos y lo añadimos a la lista de cerrados
+
+        open_list.pop(current_index)
+        closed_list.append(current_node)
+
+        # Comprobamos si hemos encontrado la meta
+
+        if self.is_goal(current_node):
+            path = []
+            current = current_node
+            while current is not None:
+                path.append(current.state)
+                current = current.parent
+            return path[::-1] 
+            
+        # Generamos los sucesores
+
+        children = []
+        
+        for cont, i in enumerate(current_node.state[:-1]):
+            if i[0] == current_node.state[-1]:
+                self.cargar(i)
+            
+
+
+        # Loop through children
+        for child in children:
+
+            # Child is on the closed list
+            for closed_child in closed_list:
+                if child == closed_child:
+                    continue
+
+            # Create the f, g, and h values
+            child.g = current_node.g + 1
+            child.h = ((child.state[0] - end_node.state[0]) ** 2) + ((child.state[1] - end_node.state[1]) ** 2)
+            child.f = child.g + child.h
+
+            # Child is already in the open list
+            for open_node in open_list:
+                if child == open_node and child.g > open_node.g:
+                    continue
+
+            # Add the child to the open list
+            open_list.append(child)
+
+        
+
+    def is_goal(self, node):
+        """
+        Método para obtener el nodo final del problema
+        """
+        
+        for cont, i in enumerate(node.state):
+            if cont != len(node.state) - 1 and (i[1] != None or i[0] != self.content[cont]):
+                return False
+        return True
+
+    def cargar(self, i):
+        """
+        Operador cargar, carga los containers en el barco
+        """
+        pass
+    
+    def descargar_destinadosP1_P1(self):
+        """
+        Operador descargar contenedores destinados a P1 en P1,
+        descarga los containers del barco que cumplen esa condición
+        """
+        pass
+
+    def descargar_destinadosP2_P1(self):
+        """
+        Operador descargar contenedores destinados a P2 en P1,
+        descarga los containers del barco que cumplen esa condición
+        """
+        pass
+
+    def navegar_bahia_P1(self):
+        """
+        Operador navegar desde la bahía a puerto 2
+        """
+        pass
+
+    def navegar_P1_P2(self):
+        """
+        Operador navegar desde puerto 1 a puerto 2
+        """
+        pass
+
+class Node():
+    """A node class for A* Pathfinding"""
+
+    def __init__(self, state, parent=None):
+        self.parent = parent
+        self.state = state
+
+        self.g = 0
+        self.h = 0
+        self.f = 0
+
+    def __eq__(self, other):
+        return self.state == other.state
