@@ -37,7 +37,7 @@ class Problema:
         self.map = self.map.split("\n")
         self.positions = []
 
-        for i in map:
+        for i in self.map:
             self.positions.append(i.split(" "))
 
         # Definimos la tupla que representará el estado inicial
@@ -47,6 +47,7 @@ class Problema:
         for i in self.cont:
             all_content = i.split(" ")
             self.content.append(tuple(all_content[1:]))
+
         
         initial_state = []
         for i in range(len(self.cont)):
@@ -63,9 +64,9 @@ class Problema:
 
         # Resolvemos el problema utlizando A*
 
-        self.astar(start_node)
+        print(self.astar(start_node))
 
-    def astar(self, start_node, end_node):
+    def astar(self, start_node):
         """
         Operador cargar, carga los containers en el barco
         """
@@ -85,7 +86,9 @@ class Problema:
 
             # Guardamos el nodo actual
 
+            print("open_list antes de current: ", open_list)
             current_node = open_list[0]
+            print("current node = ", current_node)
             current_index = 0
 
             # Obtenemos el nodo de la lista de abiertos con menor f
@@ -95,33 +98,39 @@ class Problema:
                     current_node = i
                     current_index = cont
 
-        # Eliminamos el nodo actual de la lista de abiertos y lo añadimos a la lista de cerrados
+            # Eliminamos el nodo actual de la lista de abiertos y lo añadimos a la lista de cerrados
 
-        open_list.pop(current_index)
-        closed_list.append(current_node)
+            open_list.pop(current_index)
 
-        # Comprobamos si hemos encontrado la meta
+            print("Open después de abrir current: ", open_list)
+            closed_list.append(current_node)
 
-        if self.is_goal(current_node):
-            path = []
-            current = current_node
-            while current is not None:
-                path.append(current.state)
-                current = current.parent
-            return path[::-1] 
-            
-        # Generamos los sucesores
+            # Comprobamos si hemos encontrado la meta
 
-        self.get_children(current_node)
-    
+            if self.is_goal(current_node):
+                path = []
+                current = current_node
+                while current is not None:
+                    path.append(current.state)
+                    current = current.parent
+                return path[::-1] 
+                
+            # Generamos los sucesores
+
+            children = self.get_children(current_node)
+
+            for i in children:
+                open_list.append(i)
+
+            #print("----- Iteración -----")
+            #print(children)    
 
     def is_goal(self, node):
         """
         Método para obtener el nodo final del problema
         """
-        
-        for cont, i in enumerate(node.state):
-            if cont != len(node.state) - 1 and (i[1] != None or i[0] != self.content[cont][1]):
+        for cont, i in enumerate(node.state[:-1]):
+            if cont != len(node.state[:-1]) - 1 and (i[1] != None or i[0] != self.content[cont][1]):
                 return False
         return True
     
@@ -129,7 +138,6 @@ class Problema:
         """
         Devuelve los sucesores de un nodo dado
         """    
-
         children=[]
         
         # Iteramos sobre todos los contenedores
@@ -140,63 +148,57 @@ class Problema:
             if node.state[-1] == i[0]:
                 children.append(self.cargar(contador, node))
 
-            # Si el barco tiene posición 1 (puerto 1), el contenteendor tiene posición 3 (barco) y el contenedor tiene como destino el puerto 1
-            # entonces llamamos al operador descargar contenedor destinado a P1 estando en P1
-            if node.state[-1] == 1 and i[0] == 3 and self.content[contador][1] == 1:
-                children.append(self.descargar_destinadosP1_P1(contador, node))
-
-            # Si el barco tiene posición 1 (puerto 1), el contenteendor tiene posición 3 (barco) y el contenedor tiene como destino el puerto 2
-            # entonces llamamos al operador descargar contenedor destinado a P2 estando en P1
-            if node.state[-1] == 1 and i[0] == 3 and self.content[contador][1] == 2:
-                children.append(self.descargar_destinadosP2_P1(contador, node))
-            
-            # Si el barco tiene posición 2 (puerto 2), el contenteendor tiene posición 3 (barco) y el contenedor tiene como destino el puerto 2
-            # entonces llamamos al operador descargar contenedor destinado a P2 estando en P2
-            if node.state[-1] == 2 and i[0] == 3 and self.content[contador][1] == 2:
-                children.append(self.descargar_destinadosP2_P2(contador, node))
+            # Si el barco tiene una posición distinta a 0 (no está en la bahía) y la posición del contedor es 3 (bodega del barco), invoca descargar
+            if node.state[-1] != 0 and i[0] == 3:
+                children.append(self.descargar(contador, node))
 
             # Comprobaremos si todos los contenedores están en el barco, es decir, que su posición sea 3
-            all_in = True
-            if i[0] != 3:
-                all_in = False
+            not_in_start = True
+            if i[0] == 0:
+                not_in_start = False
 
-            all_p2_in = True
-            if i[0] and self.content[contador][1] == 2:
-                all_p2_in = False
+        # Si el barco no se encuentra en el puerto 2 y no hay contenedores en el puerto 0
+        if node.state[-1] != 2 and not_in_start:
+            children.append(self.navegar(node))
 
-        # Si el barco se encuentra en el puerto 0 y todos los contenedores se encuentran en el barco
-        if node.state[-1] == 0 and all_in:
-            children.append(self.navegar_bahia_P1(node))
+        return children
 
-        # Si el barco se encuentra en el puerto 0 y todos los contenedores destinados al puerto 2 se encuentran en el barco
-        if node.state[-1] == 1 and all_p2_in:
-            children.append(self.navegar_P1_P2(node))
-        
-        self.descargar_destinadosP2_P2()
-            
-    def opciones_colocar(self, state):
+    def opciones_colocar(self, contador, state):
         """
         Identifica que celdas están vacías para colocar ahí un contenedor 
         """
-        
-        map = self.obtain_map()
+
+        map = self.obtain_map(self.content[contador][0])
+        def_map = self.obtain_map(self.content[contador][0])
+        already_in = []
 
         for i in state:
             if i[1] != None:
+                already_in.append(i[1])
                 map.remove(i)
-                
+        
+        # Para que no vuelen
+        for i in map:
+            pos = [i[0], i[1] + 1]
+            if (pos in def_map and pos not in already_in) or pos not in def_map:
+                map.remove(i)
+
         return map
 
-    def obtain_map(self):
+    def obtain_map(self, type):
         """
+        Devuelve las posiciones válidas de un tipo específico de container
         """
         positions=[]
         for i in range(len(self.positions)):
             for j in range(len(self.positions[i])):
                 # Definirá el dominio como toda celda no X
-                if self.positions[i][j] != "X":
-                    positions.append((j,i))
-
+                if type == "R":
+                    if self.positions[i][j] != "X" and self.positions[i][j] != "N":
+                        positions.append((j,i))
+                else:
+                    if self.positions[i][j] != "X":
+                        positions.append((j,i))
         return positions
     
     def copy_node(self, node):
@@ -204,12 +206,12 @@ class Problema:
         Devuelve un nodo copia del dado
         """
         new_node = []
-        for i in node[:-1]:
+        for i in node.state[:-1]:
             inside_node = []
             for j in i:
                 inside_node.append(j)
             new_node.append(inside_node)
-        new_node.append(node[-1])
+        new_node.append(node.state[-1])
         return Node(new_node, node)
     
     def cargar(self, contador, node):
@@ -245,7 +247,7 @@ class Problema:
         return child_nodes
 
     
-    def descargar_destinadosP1_P1(self, contador, node):
+    def descargar(self, contador, node):
         """
         Operador descargar contenedores destinados a P1 en P1,
         descarga los containers del barco que cumplen esa condición
@@ -257,8 +259,8 @@ class Problema:
         # Obtenemos el valor de la posición en el barco del contenedor
         value = node[contador][1]
 
-        # Modificamos su posición a 1 (puerto 1)
-        new_node.state[contador][0] = 1
+        # Modificamos su posición a la posición del barco (puerto donde está el barco)
+        new_node.state[contador][0] = node[-1]
 
         # Cambiamos la posición del contenedor a None (no ubicado en el barco)
         new_node.state[contador][1] = None
@@ -268,23 +270,9 @@ class Problema:
 
         return new_node
 
-    def descargar_destinadosP2_P1(self):
+    def navegar(self, node):
         """
-        Operador descargar contenedores destinados a P2 en P1,
-        descarga los containers del barco que cumplen esa condición
-        """
-        pass
-
-    def descargar_destinadosP2_P2(self):
-        """
-        Operador descargar contenedores destinados a P2 en P1,
-        descarga los containers del barco que cumplen esa condición
-        """
-        pass
-
-    def navegar_bahia_P1(self, node):
-        """
-        Operador navegar desde la bahía a puerto 2
+        Operador navegar desde donde está el barco hacia el puerto siguiente
         """
 
         # Creamos el nuevo nodo
@@ -297,12 +285,6 @@ class Problema:
         new_node.g = node.g + 3500
 
         return new_node
-
-    def navegar_P1_P2(self):
-        """
-        Operador navegar desde puerto 1 a puerto 2
-        """
-        pass
 
 class Node():
     """A node class for A* Pathfinding"""
@@ -317,3 +299,13 @@ class Node():
 
     def __eq__(self, other):
         return self.state == other.state
+
+    # def __str__(self):
+    #     return str(self.state)
+
+    # def __repr__(self):
+    #     return self.__str__()
+
+
+if __name__=="__main__":
+    a = Problema()
