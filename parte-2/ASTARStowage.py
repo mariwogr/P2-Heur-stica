@@ -28,7 +28,14 @@ class Problema:
             print("Error: los ficheros no existen, la ruta está mal y/o los nombres de los ficheros son incorrectos")
             return
 
-        self.heuristic = sys.argv[4]
+        if sys.argv[4] == "no_colocados":
+            self.heuristic = 0
+
+        elif sys.argv[4] == "xd":
+            self.heuristic = 1
+
+        else:
+            print("La heurística introducida no es válida")
 
         # Leemos el contenido de los dos ficheros obtenidos por las rutas combinadas respectivas
         self.map = map_file.read()
@@ -53,6 +60,10 @@ class Problema:
         for i in range(len(self.cont)):
             container = [0, None]    
             initial_state.append(container)
+        
+        # Recogemos el mapa inicial de carga del barco
+
+        self.initial_map = self.obtain_map()
 
         # Añadimos el estado inicial del barco
 
@@ -64,7 +75,22 @@ class Problema:
 
         # Resolvemos el problema utlizando A*
 
-        print(self.astar(start_node))
+        sol = self.astar(start_node)
+
+        print(sol)
+        #self.write(sol)
+    
+    def write(self, sol):
+
+        # action = [action,parameter1,parameter2]
+        
+        output = ""
+        
+        for i in sol:
+            output+= f"Acción {i.action[0]} ({i.action[1], i.action[2]}) \n"
+
+        output_file = open(sys.argv[1] + "/" + sys.argv[2] + "-" + sys.argv[3] + ".output", "w")
+        output_file.write(output)
 
     def astar(self, start_node):
         """
@@ -85,16 +111,14 @@ class Problema:
         while len(open_list) > 0:
 
             # Guardamos el nodo actual
-
-            print("open_list antes de current: ", open_list)
+            
             current_node = open_list[0]
-            print("current node = ", current_node)
             current_index = 0
-
+            # print(current_node, current_node.g)
             # Obtenemos el nodo de la lista de abiertos con menor f
 
             for cont, i in enumerate(open_list):
-                if i.f < current_node.f:
+                if i.f() < current_node.f():
                     current_node = i
                     current_index = cont
 
@@ -102,7 +126,6 @@ class Problema:
 
             open_list.pop(current_index)
 
-            print("Open después de abrir current: ", open_list)
             closed_list.append(current_node)
 
             # Comprobamos si hemos encontrado la meta
@@ -111,7 +134,7 @@ class Problema:
                 path = []
                 current = current_node
                 while current is not None:
-                    path.append(current.state)
+                    path.append(current)
                     current = current.parent
                 return path[::-1] 
                 
@@ -119,8 +142,19 @@ class Problema:
 
             children = self.get_children(current_node)
 
-            for i in children:
-                open_list.append(i)
+            for child in children:
+                
+                c = True
+                for i in closed_list:
+                    if child == i:
+                        c = False
+
+                for i in open_list:
+                    if child == i and child.f() > i.f():
+                        c = False
+
+                if c == True:    
+                    open_list.append(child)
 
             #print("----- Iteración -----")
             #print(children)    
@@ -130,7 +164,7 @@ class Problema:
         Método para obtener el nodo final del problema
         """
         for cont, i in enumerate(node.state[:-1]):
-            if cont != len(node.state[:-1]) - 1 and (i[1] != None or i[0] != self.content[cont][1]):
+            if int(i[0]) != int(self.content[cont][1]):
                 return False
         return True
     
@@ -146,20 +180,20 @@ class Problema:
 
             # Si el contenedor i está en la misma posición del barco, se llama a la función cargar para generar los sucesores
             if node.state[-1] == i[0]:
-                children.append(self.cargar(contador, node))
+                children.extend(self.cargar(contador, node))
 
             # Si el barco tiene una posición distinta a 0 (no está en la bahía) y la posición del contedor es 3 (bodega del barco), invoca descargar
-            if node.state[-1] != 0 and i[0] == 3:
-                children.append(self.descargar(contador, node))
+            if node.state[-1] != 0 and i[0] == 3  and self.arriba(contador, node.state):
+                children.extend([self.descargar(contador, node)])
 
-            # Comprobaremos si todos los contenedores están en el barco, es decir, que su posición sea 3
-            not_in_start = True
-            if i[0] == 0:
-                not_in_start = False
-
+            # # Comprobaremos si todos los contenedores están en el barco, es decir, que su posición sea 3
+            # not_in_start = True
+            # if i[0] == 0:
+            #     not_in_start = False
+                
         # Si el barco no se encuentra en el puerto 2 y no hay contenedores en el puerto 0
-        if node.state[-1] != 2 and not_in_start:
-            children.append(self.navegar(node))
+        if node.state[-1] != 2: #and not_in_start:
+            children.extend([self.navegar(node)])
 
         return children
 
@@ -168,24 +202,42 @@ class Problema:
         Identifica que celdas están vacías para colocar ahí un contenedor 
         """
 
-        map = self.obtain_map(self.content[contador][0])
-        def_map = self.obtain_map(self.content[contador][0])
+        # Recoge todas las posibles posiciones del mapa
+
+        map_modified = self.obtain_map(self.content[contador][0])
+
+        # Definimos una lista already_in a la que iremos añadiendo las posiciones ya ocupadas en el mapa
+
         already_in = []
 
+        # Iteramos sobre los distintos contenedores de la tupla de estados
         for i in state:
+
+            # Comprobamos si el contenedor está ya en el barco
             if i[1] != None:
                 already_in.append(i[1])
-                map.remove(i)
+                # Eliminamos esa opción del mapa
+                map_modified.remove(i[1])
         
-        # Para que no vuelen
-        for i in map:
-            pos = [i[0], i[1] + 1]
-            if (pos in def_map and pos not in already_in) or pos not in def_map:
-                map.remove(i)
+        # Asignamos posiciones factibles (no volando) iterando sobre el mapa de posibles celdas a ocupar
+        
+        for i in map_modified:
 
-        return map
+            # pos es una variable que controlará la posición justo debajo de la posición i en las posiciones factibles
 
-    def obtain_map(self, type):
+            pos = (i[0], i[1] + 1)
+
+            # Si pos está en el mapa inicial (es una posición legal, su profundidad no es mayor que la máxima) y si no hay algún contenedor ya en la posición. Si todo esto se cumple:
+            # la posición i no es legal.
+
+            if pos in self.initial_map and pos not in already_in:
+                map_modified.remove(i)
+
+        # Devolvemos todas las posibles posiciones.
+        
+        return map_modified
+
+    def obtain_map(self, type = None):
         """
         Devuelve las posiciones válidas de un tipo específico de container
         """
@@ -213,6 +265,17 @@ class Problema:
             new_node.append(inside_node)
         new_node.append(node.state[-1])
         return Node(new_node, node)
+
+    def arriba(self, contador, state):
+        """
+        Comprueba si el contenedor indexado por @param contador tiene la profundidad mínima en la pila de contenedores
+        """
+
+        for index, i in enumerate(state[:-1]):
+            if i[1] != None:
+                if state[contador][1][1] > i[1][1] and state[contador][1][0] == i[1][0] and index != contador:
+                    return False
+        return True
     
     def cargar(self, contador, node):
         """
@@ -241,6 +304,9 @@ class Problema:
             # Actualizamos el coste g del nuevo nodo: g del nodo anterior + 10 + la profundidad (más 1 al empezar en 0)
             new_node.g = node.g + 10 + (i[0] + 1)
 
+            # Calculamos su h
+            new_node.h = self.h(new_node.state)
+
             # Añadimos los nodos a la lista de nodos generados
             child_nodes.append(new_node)
 
@@ -257,16 +323,16 @@ class Problema:
         new_node = self.copy_node(node)
 
         # Obtenemos el valor de la posición en el barco del contenedor
-        value = node[contador][1]
+        value = node.state[contador][1]
 
         # Modificamos su posición a la posición del barco (puerto donde está el barco)
-        new_node.state[contador][0] = node[-1]
+        new_node.state[contador][0] = node.state[-1]
 
         # Cambiamos la posición del contenedor a None (no ubicado en el barco)
         new_node.state[contador][1] = None
 
         # Actualizamos el coste g del nuevo nodo: g del nodo anterior + 15 + 2 veces la profundidad de 
-        new_node.g = node.g + 15 + 2*value[0]
+        new_node.g = node.g + 15 + 2*(value[0]+1)
 
         return new_node
 
@@ -286,6 +352,22 @@ class Problema:
 
         return new_node
 
+    def h(self, state):
+        """
+        Operador navegar desde donde está el barco hacia el puerto siguiente
+        """
+        h = 0
+        if self.heuristic == 0:
+
+            # Determina cuantos contenedores no están colocados en su puerto destino
+            for index, i in enumerate(state[:-1]):
+                if i[0] != self.content[index][1]:
+                    h += 1
+            return  h
+        
+        # else self.heuristic == 1
+
+
 class Node():
     """A node class for A* Pathfinding"""
 
@@ -295,17 +377,19 @@ class Node():
 
         self.g = 0
         self.h = 0
-        self.f = 0
 
     def __eq__(self, other):
+            
         return self.state == other.state
 
-    # def __str__(self):
-    #     return str(self.state)
+    def __str__(self):
+        return str(self.state)
 
-    # def __repr__(self):
-    #     return self.__str__()
+    def __repr__(self):
+        return self.__str__()
 
+    def f(self):
+        return self.g + self.h
 
 if __name__=="__main__":
     a = Problema()
