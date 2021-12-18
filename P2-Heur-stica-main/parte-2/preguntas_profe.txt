@@ -1,0 +1,4 @@
+- Modelado de las dos partes.
+- Los operadores están bien definidos, hay que especificar el barco?.
+- Metas explícitas o comprobación de estados.
+- Generación de children.
